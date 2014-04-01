@@ -10,8 +10,11 @@ Author URI:     http://thingworld.com/aboutme
 License:        MIT
 */
 
+require_once('functions.php');
 require_once('objects/ATGC.Formstack.class.php');
-require_once('objects/ATGC.Registrations.class.php');
+require_once('objects/ATGC.Registration.class.php');
+require_once('objects/ATGC.Checkout.class.php');
+require_once('objects/ATGC.BulletinBoard.class.php');
 
 
 ?>

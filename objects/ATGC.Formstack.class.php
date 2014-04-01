@@ -30,6 +30,8 @@ class ATGC_Formstack {
 		curl_setopt($res, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($res, CURLOPT_HTTPHEADER, array( 'Authorization: Bearer ' . self::API_KEY ) );
 		
+		//var_dump( curl_getinfo( $res ) );
+		
 		$data = json_decode( curl_exec( $res ) );
 		
 		$merged_data = array_merge( $merged_data , $data->submissions );
