@@ -30,30 +30,44 @@ class ATGC_Formstack {
 		curl_setopt($res, CURLOPT_RETURNTRANSFER, 1);
 		curl_setopt($res, CURLOPT_HTTPHEADER, array( 'Authorization: Bearer ' . self::API_KEY ) );
 		
-		//var_dump( curl_getinfo( $res ) );
+		var_dump( curl_getinfo( $res ) );
 		
 		$data = json_decode( curl_exec( $res ) );
 		
-		$merged_data = array_merge( $merged_data , $data->submissions );
+		//var_dump( $data );
 		
-		if ( empty( $totals ) ) {
+		if ( property_exists( $data , 'submissions' ) ) {
 			
-			$totals['objects'] = $data->total;
-			$totals['pages'] = $data->pages;
+			// only necessary for data collections
 			
-		}
-		
-		if ( !array_key_exists( 'page' , $params ) ) {
-		
-			$params['page'] = 1;
+			$merged_data = array_merge( $merged_data , $data->submissions );
 			
-		}
-		
-		if ( $params['page'] < $totals['pages'] ) {
+			if ( empty( $totals ) ) {
+				
+				$totals['objects'] = $data->total;
+				$totals['pages'] = $data->pages;
+			}
 			
-			$params['page']++;
+			// retrieves additional records if it discovers more are available
 			
-			$this->request( $object , $params , $totals , $merged_data );
+			if ( !array_key_exists( 'page' , $params ) ) {
+			
+				$params['page'] = 1;
+				
+			}
+			
+			if ( $params['page'] < $totals['pages'] ) {
+				
+				$params['page']++;
+				
+				$this->request( $object , $params , $totals , $merged_data );
+			}
+			
+		} elseif ( property_exists( $data , 'data' ) ) {
+			
+			// processing individual records
+			
+			$merged_data = $data;
 		}
 			
 		curl_close( $res );

@@ -6,7 +6,7 @@ class ATGC_Registration {
 	
 	private $default_params = array();
 	
-	private $form_id = '1715421';
+	private $form_id = '1715418';
 	
 	private $form_fields = array();
 	
@@ -32,7 +32,7 @@ class ATGC_Registration {
 	}
 	
 	
-	public function get_registrations( $params , $filters ) {
+	public function get_registrations( $params , $filters = array() ) {
 		
 		$res = new ATGC_Formstack();
 		
@@ -48,9 +48,8 @@ class ATGC_Registration {
 			
 			$search = atgc_asdm_resolve_search( $params['search_params'] , $this->form_fields );
 			$params = array_merge( $params , $search );
+			unset( $params['search_params'] );
 		}
-		
-		unset( $params['search_params'] );
 		
 		$registrations = $res->request( $object , $params );
 		
@@ -59,6 +58,28 @@ class ATGC_Registration {
 		//var_dump( $registrations );
 		
 		return $registrations;
+	}
+	
+	
+	public function get_registration ( $guest_id , $params , $filters = array() ) {
+		
+		$res = new ATGC_Formstack();
+		
+		$object = array(
+				'primary_object' => 'submission',
+				'primary_object_id' => $guest_id,
+			);
+		
+		if ( array_key_exists( 'search_params' , $params ) ) {
+			
+			$search = atgc_asdm_resolve_search( $params['search_params'] , $this->form_fields );
+			$params = array_merge( $params , $search );
+			unset( $params['search_params'] );
+		}
+		
+		$regs = $res->request( $object , $params );
+		
+		return $regs;
 	}
 	
 	
@@ -73,7 +94,6 @@ class ATGC_Registration {
 		
 		return $params;
 	}
-	
 }
 
 ?>
