@@ -33,6 +33,7 @@ class ATGC_Registration {
 			'sponsor_type' => array( 'id' => '24874758' , 'label' => 'Sponsor Type' ),
 			'sponsor' => array( 'id' => '24795108' , 'label' => 'Sponsor' ),
 			'tickets' => array( 'id' => '24898701' , 'label' => 'Tickets' ),
+			'availability' => array( 'id' => '24912337' , 'label' => 'Availability' ),
 			'status' => array( 'id' => '24795534' , 'label' => 'Status' ),
 		);
 		
@@ -83,7 +84,7 @@ class ATGC_Registration {
 	}
 	
 	
-	public function get_registration( $guest_id , $params , $filters = array() ) {
+	public function get_registration( $guest_id , $params = array() , $filters = array() ) {
 		
 		$res = new ATGC_Formstack();
 		
@@ -92,6 +93,15 @@ class ATGC_Registration {
 				'primary_object_id' => $guest_id,
 			);
 		
+		if ( empty( $params ) ) {
+			
+			$params = array (
+				'data' => '',
+				'expand_data' => '',
+			);
+			
+		}
+		
 		if ( array_key_exists( 'search_params' , $params ) ) {
 			
 			$search = atgc_asdm_resolve_search( $params['search_params'] , $this->form_fields );
@@ -99,13 +109,13 @@ class ATGC_Registration {
 			unset( $params['search_params'] );
 		}
 		
-		$regs = $res->request( $object , $params );
+		$registration = $res->request( $object , $params );
 		
-		return $regs;
+		return $registration;
 	}
 	
 	
-	public function get_guest( $id ) {
+	public function get_guest( $id , $id_type = 'registration' ) {
 		
 		$params = array (
 				'data' => '',
@@ -126,8 +136,19 @@ class ATGC_Registration {
 			);
 		
 		$profile = array();
+		
+		if ( $id_type == 'registration' ) {
 			
-		$guest = $this->get_registration( $id , $params );
+			$guest = $this->get_registration( $id , $params );
+			
+		} elseif ( $id_type == 'guest' ) {
+			
+			$params['search_params'] = array( array( 'field' => 'guest_id' , 'value' => $id ) );
+			
+			//var_dump($params);
+			
+			$guest = $this->get_registrations( $params );
+		}
 		
 		//var_dump( $guest );
 		
@@ -135,12 +156,34 @@ class ATGC_Registration {
 		
 			$profile[ $field_name ] = array( 'id' => $field_meta['id'] , 'label' => $field_meta['label'] , 'value' => 'No information available.' );
 			
-			foreach ( $guest->data as $details ) {
+			if ( $id_type == 'registration' ) {
 				
-				if ( $details->field == $field_meta['id'] && $details->flat_value != '' ) {
+				foreach ( $guest->data as $details ) {
 					
-					$profile[ $field_name ] = array( 'id' => $field_meta['id'] , 'label' => $field_meta['label'] , 'value' => $details->flat_value );
+					if ( $details->field == $field_meta['id'] && $details->flat_value != '' ) {
+						
+						$profile[ $field_name ] = array( 'id' => $field_meta['id'] , 'label' => $field_meta['label'] , 'value' => $details->flat_value );
+						
+					}
+				}
+				
+			} elseif ( $id_type == 'guest' ) {
+				
+				foreach ( $guest[0]->data as $details ) {
+				
+					//var_dump($details);
 					
+					if ( $details->field == $field_meta['id'] && $details->flat_value != '' ) {
+					
+						if ( $details->field == $form_fields['guest_name']['id'] ) {
+							
+							$profile[ $field_name ] = array( 'id' => $field_meta['id'] , 'label' => $field_meta['label'] , 'value' => $details->value->first . ' ' . $details->value->last );
+							
+						} else {
+							
+							$profile[ $field_name ] = array( 'id' => $field_meta['id'] , 'label' => $field_meta['label'] , 'value' => $details->flat_value );
+						}
+					}
 				}
 			}
 		}
@@ -162,56 +205,97 @@ class ATGC_Registration {
 	}
 	
 	
-	public function update_registration( $guest_id , $data ) {
+	public function update_registration( $registration_id , $data ) {
 		
 		$fs = new ATGC_Formstack();
 		
 		$object = array(
 			'primary_object' => 'submission',
-			'primary_object_id' => $guest_id,
+			'primary_object_id' => $registration_id,
 		);
 		
-		foreach ( $data as $k => &$v ) {
-			
-			// merge Date of Birth component variables
-			
-			if ( str_replace( 'field_' , '' , $k ) == $this->form_fields['dob']['id'] ) {
-				
-				//var_dump( $v );
-				
-				$v = $v['year'] . '-' . $v['month'] . '-' . $v['day'];
-				
-				//var_dump($v);
-				
-				$v = $this->convert_dob( $v );
-				
-				//var_dump($v);
-			}
-			
-			// merge Name component variables
-			
-			/*if ( str_replace( 'field_' , '' , $k ) == $this->form_fields['guest_name'] ) {
-				
-				//var_dump( $v );
-				
-				$v = $v['first'] . ' ' . $v['last'];
-				
-				//var_dump($v);
-			}*/
-		}
+		$data = $this->prepare_data( $data );
 		
-		//$data['id'] = $guest_id;
+		$update_response = $fs->update( $object , $data );
 		
-		//var_dump( $data );
-		
-		
-		
-		$profile = $fs->update( $object , $data );
-		
-		return $profile;
+		return $update_response;
 		
 		//var_dump($profile);
 	}
+	
+	
+	private function prepare_data( $data ) {
+		
+		$prepared_date = array();
+		
+		foreach ( $data as $k => &$v ) {
+	
+			if ( $k != 'form_action' ) {
+			
+				if ( !is_array( $v ) ) {
+			
+					if ( str_replace( 'field_' , '' , $k ) == $this->form_fields['status']['id'] ) {
+				
+						if ( !empty( $v ) ) {
+						
+							$prepared_data[ $k ] = $v;
+							
+						} else {
+							
+							$prepared_data[ $k ] = 0;
+						}
+				
+					} elseif ( str_replace( 'field_' , '' , $k ) == $this->form_fields['email']['id'] ) {
+				
+						if ( is_email( $v ) ) {
+							
+							$prepared_data[ $k ] = $v;
+							
+						} elseif ( (bool)is_email( $v ) === false ) {
+							
+							//echo '<p>Email not valid.</p>';
+							
+						} elseif ( trim( $v ) == '' ) {
+							
+							//echo '<p>Email not provided.</p>';
+						}
+					
+					} elseif ( !empty( $v ) ) {
+						
+						$prepared_data[ $k ] = $v;
+					}
+				
+				} elseif ( is_array( $v ) ) {
+			
+					if ( str_replace( 'field_' , '' , $k ) == $this->form_fields['guest_name']['id'] ) {
+				
+						if ( !in_array( '' , $v , true ) ) {
+						
+							$prepared_data[ $k ] = $v;
+						}
+						
+					} elseif ( str_replace( 'field_' , '' , $k ) == $this->form_fields['dob']['id'] ) {
+				
+						if ( !in_array( '' , $v , true ) ) {
+							
+							$v = $v['year'] . '-' . $v['month'] . '-' . $v['day'];
+							
+							$v = $this->convert_dob( $v );
+							
+							$prepared_data[ $k ] = $v;
+							
+						} else {
+							
+							//echo '<p>Date of Birth not valid</p>';
+						}
+					}
+				}
+			}
+		}
+		
+		return $prepared_data;	
+	}
+	
 	
 	public function checkin_guest( $registration_id ) {
 		
@@ -222,11 +306,30 @@ class ATGC_Registration {
 			'primary_object_id' => $registration_id,
 		);
 		
-		$data = array( 'field_' . $this->form_fields['status']['id'] => 1 );
+		$data = array( 
+			'field_' . $this->form_fields['status']['id'] => 1,
+			'field_' . $this->form_fields['availability']['id'] => 0,
+		);
 		
 		//var_dump($data);
 		
 		$update_response = $fs->update( $object , $data );
+		
+		//var_dump( $update_response );
+		
+		if ( property_exists( $update_response , 'success' ) ) {
+			
+			if ( $update_response->success ) {
+				
+				$register_response = array(
+					'status' => 1,
+					'action' => 'checkin',
+					'message' => 'The guest was successfully checked-in.',
+					'name' => '',
+					'guest_id' => '',
+				);
+			}
+		}
 		
 		return $update_response;
 	}
@@ -242,74 +345,10 @@ class ATGC_Registration {
 			'sub_object' => 'submission'
 		);
 		
-		$data = array();
-		
-		foreach ( $profile as $k => &$v ) {
-		
-			if ( $k != 'form_action' ) {
-				
-				if ( !is_array( $v ) ) {
-				
-					if ( str_replace( 'field_' , '' , $k ) == $this->form_fields['status']['id'] ) {
-					
-						if ( !empty( $v ) ) {
-						
-							$data[ $k ] = $v;
-							
-						} else {
-							
-							$data[ $k ] = 0;
-						}
-					
-					} elseif ( str_replace( 'field_' , '' , $k ) == $this->form_fields['email']['id'] ) {
-					
-						if ( is_email( $v ) ) {
-							
-							$data[ $k ] = $v;
-							
-						} elseif ( (bool)is_email( $v ) === false ) {
-							
-							//echo '<p>Email not valid.</p>';
-							
-						} elseif ( trim( $v ) == '' ) {
-							
-							//echo '<p>Email not provided.</p>';
-						}
-						
-					} elseif ( !empty( $v ) ) {
-						
-						$data[ $k ] = $v;
-					}
-					
-				} elseif ( is_array( $v ) ) {
-				
-					if ( str_replace( 'field_' , '' , $k ) == $this->form_fields['guest_name']['id'] ) {
-				
-						if ( !in_array( '' , $v , true ) ) {
-						
-							$data[ $k ] = $v;
-						}
-						
-					} elseif ( str_replace( 'field_' , '' , $k ) == $this->form_fields['dob']['id'] ) {
-				
-						if ( !in_array( '' , $v , true ) ) {
-							
-							$v = $v['year'] . '-' . $v['month'] . '-' . $v['day'];
-							
-							$v = $this->convert_dob( $v );
-							
-							$data[ $k ] = $v;
-							
-						} else {
-							
-							//echo '<p>Date of Birth not valid</p>';
-						}
-					}
-				}
-			}
-		}
+		$data = $this->prepare_data( $profile );
 		
 		$data[ 'field_' . $this->form_fields['guest_id']['id'] ] = $this->create_guest_id();
+		$data[ 'field_' . $this->form_fields['availability']['id'] ] = 0;
 		
 		//var_dump($profile);
 		//var_dump($data);
@@ -626,7 +665,7 @@ class ATGC_Registration {
 	}
 	
 	
-	public function search_sponsors( $input ) {
+	public function get_sponsors( $input ) {
 							
 		$search = array();
 		
@@ -660,6 +699,8 @@ class ATGC_Registration {
 			}
 		}
 		
+		//var_dump($search);
+		
 		//$search[] = array( 'field' => 'tickets' , 'value' => '<2' );
 		
 		//var_dump($search);
@@ -684,8 +725,10 @@ class ATGC_Registration {
 				
 				//var_dump( $sponsor->data->{'24795099'}->value );
 				
-				$sponsor_search[] = array( 'field' => 'sponsor' , 'value' => $sponsor->data->{'24795099'}->value );
+				// Organize search parameters
 				
+				$sponsor_search[] = array( 'field' => 'sponsor_type' , 'value' => 1 );
+				$sponsor_search[] = array( 'field' => 'sponsor' , 'value' => $sponsor->data->{'24795099'}->value );
 				$sponsor_search[] = array( 'field' => 'status' , 'value' => '0' );
 				
 				$sponsor_params = array (
@@ -696,12 +739,12 @@ class ATGC_Registration {
 				
 				//var_dump($sponsor_params);
 				
-				$sponsor_guests = $this->get_registrations( $sponsor_params );
+				$sponsored_guests = $this->get_registrations( $sponsor_params );
 				
 				//var_dump($sponsor_guests);
 				
-				if ( count( $sponsor_guests ) ) {
-					$list[ $sponsor->data->{'24795099'}->value ] = array( 'id' => $sponsor->id , 'first_name' => $sponsor->data->{'24795094'}->value->first , 'last_name' => $sponsor->data->{'24795094'}->value->last , 'guests' => count( $sponsor_guests ) );
+				if ( count( $sponsored_guests ) ) {
+					$list[ $sponsor->data->{'24795099'}->value ] = array( 'id' => $sponsor->id , 'sponsor_type' => null , 'first_name' => $sponsor->data->{'24795094'}->value->first , 'last_name' => $sponsor->data->{'24795094'}->value->last , 'guests' => count( $sponsored_guests ) );
 				}
 			}
 			
@@ -709,12 +752,86 @@ class ATGC_Registration {
 			
 		} elseif ( $input['search_by'] == 'affiliation' ) {
 			
-			$affiliate_search = array();
+			//var_dump( $params );
 			
-			//$affiliates = $this->get_affiliates();
+			$affiliates = $this->get_affiliates( $params );
+			
+			foreach ( $affiliates as $affiliate ) {
+				
+				$affiliate_search = array();
+				
+				// Organize search parameters
+				
+				$affiliate_search[] = array( 'field' => 'sponsor_type' , 'value' => 2 );
+				$affiliate_search[] = array( 'field' => 'sponsor' , 'value' => $affiliate->data->{'24898126'}->value );
+				$affiliate_search[] = array( 'field' => 'status' , 'value' => '0' );
+				
+				$affiliate_params = array (
+					'data' => '',
+					'expand_data' => '',
+					'search_params' => $affiliate_search,
+				);
+				
+				$affiliated_guests = $this->get_registrations( $affiliate_params );
+				
+				if ( count( $affiliated_guests ) ) {
+					$list[ $affiliate->data->{'24898126'}->value ] = array( 'id' => $affiliate->id , 'sponsor_type' => null , 'affiliate_name' => $affiliate->data->{'24898013'}->value , 'guests' => count( $affiliated_guests ) );
+				}
+			}
 		}
 		
 		return $list;
+	}
+	
+	
+	public function get_sponsor( $sponsor_id , $sponsor_type ) {
+	
+		//var_dump($sponsor_id);
+		//var_dump($sponsor_type);
+		
+		if ( $sponsor_id == 'No information available.' || $sponsor_type == 'No information available.' ) {
+			
+			$sponsor = 'No information available.';
+			
+		} else {
+			
+			if ( $sponsor_type == 1 ) {
+			
+				$sponsor = $this->get_guest( $sponsor_id , 'guest' );
+				
+				$sponsor = $sponsor['guest_name']['value'];
+				
+				//var_dump($sponsor);
+				
+				
+			} elseif ( $sponsor_type  == 2 ) {
+				
+				$sponsor = '';
+			}
+		}
+		
+		return $sponsor;
+	}
+	
+	
+	private function prepare_params( $params , $fields ) {
+	
+		//var_dump($fields);
+	
+		$params = $this->parse_params( $params );
+		
+		if ( array_key_exists( 'search_params' , $params ) ) {
+			
+			$search = atgc_asdm_resolve_search( $params['search_params'] , $fields );
+			//var_dump($search);
+			$params = array_merge( $params , $search );
+			
+			unset( $params['search_params'] );
+			//var_dump($params);
+		}
+		
+		return $params;
+		
 	}
 	
 	
@@ -726,7 +843,9 @@ class ATGC_Registration {
 		);
 		
 		$search_params = array(
+			//array( 'field' => 'sponsor_type' , 'value' => 1 ),
 			array( 'field' => 'sponsor' , 'value' => $sponsor_id ),
+			array( 'field' => 'status' , 'value' => 0 ),
 		);
 		
 		$params['search_params'] = $search_params;
@@ -751,19 +870,22 @@ class ATGC_Registration {
 			'sub_object' => 'submission'
 		);
 		
-		$params = array (
-			'data' => '',
-			'expand_data' => '',
-		);
+		if ( empty( $params) ) {
+			$params = array (
+				'data' => '',
+				'expand_data' => '',
+			);
+		}
 		
-		$params = $this->parse_params( $params );
+		$params = $this->prepare_params( $params , $this->affiliates_form_fields );
+		
+		//var_dump($params);
 		
 		$affiliates = $res->request( $object , $params );
 		
 		//var_dump($affiliates);
 		
 		return $affiliates;
-		
 	}
 	
 	
