@@ -64,6 +64,8 @@ class ATGC_Registration {
 		
 		$params = $this->parse_params( $params );
 		
+		//var_dump($params);
+		
 		if ( array_key_exists( 'search_params' , $params ) ) {
 			
 			$search = atgc_asdm_resolve_search( $params['search_params'] , $this->form_fields );
@@ -73,6 +75,8 @@ class ATGC_Registration {
 			unset( $params['search_params'] );
 			//var_dump($params);
 		}
+		
+		//var_dump($params);
 		
 		$registrations = $res->request( $object , $params );
 		

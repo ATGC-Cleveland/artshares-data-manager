@@ -130,6 +130,39 @@ class ATGC_Formstack {
 	public function delete() {
 		
 	}
+	
+	
+	public function prepare_params( $params , $fields , $defaults = array() ) {
+	
+		//var_dump($fields);
+	
+		$params = $this->parse_params( $defaults , $params );
+		
+		if ( array_key_exists( 'search_params' , $params ) ) {
+			
+			$search = atgc_asdm_resolve_search( $params['search_params'] , $fields );
+			//var_dump($search);
+			$params = array_merge( $params , $search );
+			
+			unset( $params['search_params'] );
+			//var_dump($params);
+		}
+		
+		return $params;
+	}
+	
+	
+	private function parse_params( $defaults , $params ) {
+		
+		foreach ( $defaults as $key => $value ) {
+			
+			if ( !array_key_exists( $key , $params ) ) {
+				$params[ $key ] = $value;
+			}
+		}
+		
+		return $params;
+	}
 }
 
 ?>

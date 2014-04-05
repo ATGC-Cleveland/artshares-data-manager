@@ -18,39 +18,41 @@ class ATGC_Checkout {
 		);
 		
 		$this->form_fields = array(
-			'guest_id' => '24795064',
-			'item_id' => '24795079',
-			'final_bid' => '24795074',
-			'bin_purcahse' => '24795087',
-			'receipt_id' => '24795157',
-			'fulfillment' => '24795128',
+			'guest_id' => array( 'id' => '24795064' , 'label' => 'Guest ID' ),
+			'item_id' => array( 'id' => '24795079' , 'label' => 'Item ID' ),
+			'final_bid' => array( 'id' => '24795074' , 'label' => 'Final Bid' ),
+			'bin_purcahse' => array( 'id' => '24795087' , 'label' => 'BIN Purchase' ),
+			'receipt_id' => array( 'id' => '24795157' , 'label' => 'Receipt ID' ),
+			'fulfillment' => array( 'id' => '24795128' , 'label' => 'Fulfillment' ),
 		);
 	}
 	
 	
-	public function get_checkouts( $params ) {
+	public function get_transactions( $guest_id ) {
 		
-		$res = new ATGC_Formstack();
+		$fs = new ATGC_Formstack();
 		
 		$object = array (
-				'primary_object' => 'form',
-				'primary_object_id' => $this->form_id,
-				'sub_object' => 'submission'
-			);
+			'primary_object' => 'form',
+			'primary_object_id' => $this->form_id,
+			'sub_object' => 'submission'
+		);
 		
-		$params = atgc_asdm_parse_params( $params , $this->default_params );
+		$params = array(
+			'data' => '',
+			'expand_data' => '',
+			'search_params' => array(
+				array( 'field' => 'guest_id' , 'value' => $guest_id ),
+			),
+		);
 		
-		if ( array_key_exists( 'search_params' , $params ) ) {
-			
-			$search = atgc_asdm_resolve_search( $params['search_params'] , $this->form_fields );
-			$params = array_merge( $params , $search );
-		}
+		$params = $fs->prepare_params( $params , $this->form_fields , $this->default_params );
 		
-		unset( $params['search_params'] );
+		//var_dump($params);
 		
-		$checkouts = $res->request( $object , $params );
+		$checkouts = $fs->request( $object , $params );
 		
-		$checkouts = atgc_asdm_filter_data( $checkouts , '' , $this->form_fields );
+		//$checkouts = atgc_asdm_filter_data( $checkouts , '' , $this->form_fields );
 		
 		//var_dump( $checkouts );
 		
