@@ -6,12 +6,17 @@ function atgc_asdm_resolve_search( $search_params , $form_fields ) {
 	
 	foreach ( $search_params as $i => $search ) {
 		
+		//echo '<p>Search Params</p>';
+		//var_dump($search);
+		
 		if ( array_key_exists( $search['field'] , $form_fields ) ) {
 			
-			$resolved_search['search_field_'.$i] = $form_fields[ $search['field'] ];
+			$resolved_search['search_field_'.$i] = $form_fields[ $search['field'] ]['id'];
 			$resolved_search['search_value_'.$i] = $search['value'];
 		}
 	}
+	
+	//var_dump($resolved_search);
 	
 	return $resolved_search;
 }

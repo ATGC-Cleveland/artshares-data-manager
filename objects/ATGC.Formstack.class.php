@@ -24,13 +24,18 @@ class ATGC_Formstack {
      * @param array $args optional arguments
      * @return array
      */
-	public function request( $object = array() , $params = array() , $totals = array() , &$merged_data = array() ) {
+	public function request( $object = array() , $params = array() , $res = '' , $totals = array() , &$merged_data = array()  ) {
 	
-		$res = curl_init( self::API_URL . implode( $object , '/' ) . '?' . http_build_query( $params ) );
-		curl_setopt($res, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($res, CURLOPT_HTTPHEADER, array( 'Authorization: Bearer ' . self::API_KEY ) );
+		//var_dump( $res );
 		
-		var_dump( curl_getinfo( $res ) );
+		if ( empty( $res ) ) {
+			
+			$res = curl_init( self::API_URL . implode( $object , '/' ) . '?' . http_build_query( $params ) );
+			curl_setopt($res, CURLOPT_RETURNTRANSFER, 1);
+			curl_setopt($res, CURLOPT_HTTPHEADER, array( 'Authorization: Bearer ' . self::API_KEY ) );
+		}
+		
+		//var_dump( curl_getinfo( $res ) );
 		
 		$data = json_decode( curl_exec( $res ) );
 		
@@ -60,12 +65,16 @@ class ATGC_Formstack {
 				
 				$params['page']++;
 				
-				$this->request( $object , $params , $totals , $merged_data );
+				$this->request( $object , $params , '' , $totals , $merged_data );
 			}
 			
 		} elseif ( property_exists( $data , 'data' ) ) {
 			
 			// processing individual records
+			
+			$merged_data = $data;
+			
+		} else {
 			
 			$merged_data = $data;
 		}
@@ -76,17 +85,49 @@ class ATGC_Formstack {
 	}
 	
 	
-	function add() {
+	public function retrieve() {
 		
 	}
 	
 	
-	function update() {
+	public function create( $object , $data ) {
+	
+		//var_dump(http_build_query( $data ));
+	
+		$res = curl_init( self::API_URL . implode( $object , '/' ) );
+		curl_setopt( $res , CURLOPT_RETURNTRANSFER, 1 );
+		curl_setopt( $res , CURLOPT_HTTPHEADER, array( 'Authorization: Bearer ' . self::API_KEY ) );
+		curl_setopt( $res , CURLOPT_RETURNTRANSFER , 1 );
+		curl_setopt( $res , CURLOPT_POST, 1 );
+		//curl_setopt( $res , CURLOPT_CUSTOMREQUEST , "PUT" );
+		curl_setopt( $res , CURLOPT_POSTFIELDS , http_build_query( $data ) );
+		
+		//var_dump( curl_getinfo( $res ) );
+		
+		return $this->request( $object , array() , $res );
 		
 	}
 	
 	
-	function delete() {
+	public function update( $object , $data ) {
+	
+		//var_dump(http_build_query( $data ));
+	
+		$res = curl_init( self::API_URL . implode( $object , '/' ) );
+		curl_setopt( $res , CURLOPT_RETURNTRANSFER, 1 );
+		curl_setopt( $res , CURLOPT_HTTPHEADER, array( 'Authorization: Bearer ' . self::API_KEY ) );
+		curl_setopt( $res , CURLOPT_RETURNTRANSFER , 1 );
+		curl_setopt( $res , CURLOPT_POST, 1 );
+		curl_setopt( $res , CURLOPT_CUSTOMREQUEST , "PUT" );
+		curl_setopt( $res , CURLOPT_POSTFIELDS , http_build_query( $data ) );
+		
+		//var_dump( curl_getinfo( $res ) );
+		
+		return $this->request( $object , array() , $res );
+	}
+	
+	
+	public function delete() {
 		
 	}
 }
